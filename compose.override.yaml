@@ -10,6 +10,8 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
   backend:
+    # A separate tag keeps `docker compose up` from reusing the deploy image.
+    image: ${COMPOSE_PROJECT_NAME}-backend:local
     build:
       target: local
     volumes:
@@ -21,6 +23,7 @@ services:
       start_period: 120s
 
   web:
+    image: ${COMPOSE_PROJECT_NAME}-web:local
     build:
       target: local
     environment:
