@@ -1,0 +1,32 @@
+# Development overrides, merged automatically by `docker compose` (`mise run dev`).
+services:
+  db:
+    environment:
+      # Fails fast with a readable message when .env is missing or incomplete.
+      POSTGRES_USER: ${POSTGRES_USER:?missing. Run `mise run setup` to create .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing. Run `mise run setup` to create .env}
+      POSTGRES_DB: ${POSTGRES_DB:?missing. Run `mise run setup` to create .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+
+  backend:
+    build:
+      target: local
+    volumes:
+      - ./backend/src:/app/src
+    ports:
+      # `mise run contract` reads the OpenAPI spec from here.
+      - "127.0.0.1:3000:3000"
+    healthcheck:
+      start_period: 120s
+
+  web:
+    build:
+      target: local
+    environment:
+      BACKEND_URL: http://backend:3000
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+    volumes:
+      - ./frontend/src:/app/src
+      - ./contract:/contract

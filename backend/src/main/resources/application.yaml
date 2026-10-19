@@ -1,0 +1,31 @@
+# Values in ${...} have no defaults on purpose. Docker Compose injects them
+# from .env, so run the app with `mise run dev`.
+server:
+  port: 3000
+  # nginx sits in front of the backend and sets X-Forwarded-* headers.
+  forward-headers-strategy: framework
+  shutdown: graceful
+
+spring:
+  application:
+    name: app
+  datasource:
+    url: jdbc:postgresql://${DB_HOST}:${DB_PORT}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+  jpa:
+    # Flyway owns the schema. Hibernate only checks that the entities match it.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+
+springdoc:
+  api-docs:
+    path: /api/openapi.json
+  default-produces-media-type: application/json
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health

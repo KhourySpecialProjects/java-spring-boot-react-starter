@@ -1,0 +1,169 @@
+# mise only installs tools and runs tasks. It does not load .env: the app gets
+# its config from Docker, so run it with `mise run dev`.
+
+[tools]
+java = "temurin-25"
+node = "24.22.0"
+pnpm = "12.14.0"
+jq = "1.8.2"
+
+# ─── setup ───
+
+[tasks.setup]
+description = "Create .env, install frontend dependencies, and generate the API client"
+run = [
+  "test -f .env || cp .env.example .env",
+  "pnpm --dir frontend install",
+  { task = "contract:client" },
+]
+
+# ─── dev (Docker, compose.yaml + compose.override.yaml) ───
+
+[tasks.dev]
+description = "Run web, backend and db in Docker (http://localhost:8080)"
+run = "docker compose up --build"
+
+[tasks."dev:down"]
+description = "Stop the dev containers"
+run = "docker compose down"
+
+[tasks."dev:logs"]
+description = "Follow the dev container logs"
+run = "docker compose logs -f"
+
+[tasks."dev:restart"]
+description = "Restart the backend to pick up Java changes"
+run = "docker compose restart backend"
+
+# ─── stack (Docker, compose.yaml only: built jar + nginx, like a deploy) ───
+
+[tasks.stack]
+description = "Build and run the deploy images (http://localhost:8080)"
+run = "docker compose -f compose.yaml up --build --wait"
+
+[tasks."stack:down"]
+description = "Stop the deploy containers"
+run = "docker compose -f compose.yaml down"
+
+# ─── db ───
+
+[tasks."db:dev:start"]
+description = "Start only the dev database"
+run = "docker compose up -d --wait db"
+
+[tasks."db:dev:stop"]
+description = "Stop the dev database"
+run = "docker compose stop db"
+
+[tasks."db:dev:psql"]
+description = "Open psql in the dev database"
+run = "docker compose exec db sh -c 'psql -U \"$POSTGRES_USER\" \"$POSTGRES_DB\"'"
+
+[tasks."db:dev:reset"]
+description = "Delete the dev database volume (migrations rerun on next start)"
+confirm = "Delete all data in the dev database?"
+run = "docker compose down -v"
+
+[tasks."db:dev:migration"]
+description = "Generate the next Flyway migration from changes to the JPA entities"
+usage = 'arg "<name>" help="snake_case description, e.g. add_users"'
+depends = ["db:dev:start"]
+run = '''
+dir=backend/src/main/resources/db/migration
+last=$(ls "$dir" | sed -nE 's/^V([0-9]+)__.*/\1/p' | sort -n | tail -1)
+file="V$(( ${last:-0} + 1 ))__${usage_name}.sql"
+
+# Boots the app once without a web server: Flyway applies the existing
+# migrations, then Hibernate writes the SQL needed to match the entities.
+docker compose run --rm -T backend ./gradlew bootRun --no-daemon --quiet --args="\
+  --spring.main.web-application-type=none \
+  --spring.jpa.hibernate.ddl-auto=none \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=update \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=/app/src/main/resources/db/migration/$file \
+  --spring.jpa.properties.hibernate.hbm2ddl.delimiter=;"
+
+if [ ! -s "$dir/$file" ]; then
+  rm -f "$dir/$file"
+  echo "The entities already match the database. No migration created."
+  exit 0
+fi
+echo "Created $dir/$file. Review it before committing: Hibernate never drops columns or tables."
+'''
+
+# ─── contract ───
+
+[tasks.contract]
+description = "Export the OpenAPI spec from the running backend and regenerate the client"
+run = [
+  "docker compose up -d --wait backend",
+  "curl -sf http://127.0.0.1:3000/api/openapi.json | jq . > contract/openapi.json",
+  { task = "contract:client" },
+]
+
+[tasks."contract:client"]
+description = "Generate the frontend API client from contract/openapi.json"
+dir = "frontend"
+run = "pnpm exec openapi-ts"
+
+# ─── lint ───
+
+[tasks."lint:backend"]
+description = "Compile the backend with Error Prone"
+dir = "backend"
+run = "./gradlew compileJava"
+
+[tasks."lint:frontend"]
+description = "Run oxlint and the TypeScript compiler on the frontend"
+depends = ["contract:client"]
+dir = "frontend"
+run = ["pnpm exec oxlint", "pnpm exec tsc --noEmit"]
+
+[tasks.lint]
+description = "Lint the backend and frontend"
+depends = ["lint:backend", "lint:frontend"]
+
+[tasks."lint:fix"]
+description = "Apply oxlint fixes to the frontend"
+dir = "frontend"
+run = "pnpm exec oxlint --fix"
+
+# ─── format ───
+
+[tasks."fmt:backend"]
+alias = "format:backend"
+description = "Check backend formatting (Spotless)"
+dir = "backend"
+run = "./gradlew spotlessCheck"
+
+[tasks."fmt:frontend"]
+alias = "format:frontend"
+description = "Check frontend formatting (oxfmt)"
+dir = "frontend"
+run = "pnpm exec oxfmt --check"
+
+[tasks.fmt]
+alias = "format"
+description = "Check backend and frontend formatting"
+depends = ["fmt:backend", "fmt:frontend"]
+
+[tasks."fmt:fix"]
+alias = "format:fix"
+description = "Format the backend and frontend"
+run = [
+  "cd backend && ./gradlew spotlessApply",
+  "cd frontend && pnpm exec oxfmt",
+]
+
+# ─── build / check ───
+
+[tasks.build]
+description = "Build the backend jar and the frontend bundle"
+depends = ["contract:client"]
+run = [
+  "cd backend && ./gradlew bootJar",
+  "cd frontend && pnpm run build",
+]
+
+[tasks.check]
+description = "Run everything CI runs"
+depends = ["fmt", "lint"]
