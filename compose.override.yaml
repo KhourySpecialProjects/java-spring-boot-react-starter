@@ -30,6 +30,8 @@ services:
       target: local
     environment:
       BACKEND_URL: http://backend:3000
+      # Vite only colors its output on a terminal, and the container has none.
+      FORCE_COLOR: "1"
     ports: !override
       - "127.0.0.1:5173:5173"
     # In dev the frontend does not need to wait for the backend to be healthy.
