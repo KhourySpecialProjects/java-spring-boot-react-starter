@@ -4,17 +4,14 @@ import com.example.app.dto.MessageDTO;
 import com.example.app.entity.Message;
 import com.example.app.repository.MessageRepository;
 import java.util.List;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
-/** The only class that talks to {@link MessageRepository}. Hands DTOs, never entities, upward. */
 @Component
+@RequiredArgsConstructor
 public class MessageDAO {
 
   private final MessageRepository repository;
-
-  public MessageDAO(MessageRepository repository) {
-    this.repository = repository;
-  }
 
   public List<MessageDTO> findLatest() {
     return repository.findLatest().stream().map(MessageDAO::toDTO).toList();

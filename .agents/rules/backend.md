@@ -8,7 +8,8 @@ paths:
 - Keep the layers: `controller` handles HTTP, `service` holds business logic,
   `dao` is the only caller of a `repository` and turns entities into DTOs.
   Entities never leave the `dao` layer.
-- Inject dependencies through the constructor into `private final` fields.
+- Inject dependencies as `private final` fields and put `@RequiredArgsConstructor` on
+  the class. Spring uses that constructor; no `@Autowired`, no hand-written constructor.
 - Every controller lives under `/api/v1`. Give each method
   `@Operation(operationId = "...")`, which becomes the function name in the frontend
   client, and `@ApiResponse` with a description.
