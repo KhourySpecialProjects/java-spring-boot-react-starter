@@ -1,0 +1,19 @@
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+.env
+.env.*
+!.env.example
+
+# backend
+backend/.gradle/
+backend/build/
+backend/bin/
+
+# frontend
+node_modules/
+frontend/dist/
+frontend/src/api/generated/
+*.tsbuildinfo

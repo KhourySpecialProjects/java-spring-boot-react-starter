@@ -1,0 +1,197 @@
+# The app always runs in Docker. mise loads .env, and Docker Compose passes it
+# into the containers. Lint, format and the OpenAPI export run on your machine
+# because they never need the database.
+
+[tools]
+java = "temurin-25"
+node = "24.22.0"
+pnpm = "12.14.0"
+# Same Flyway version Spring Boot uses, for db:dev:migrate:up and status.
+flyway = "12.4.0"
+"npm:prisma" = "7.9.1"
+
+[env]
+_.file = ".env"
+# mise pipes task output to add the [task] prefix. Without this, tools see a pipe
+# instead of a terminal and drop their colors.
+FORCE_COLOR = "1"
+# The Flyway CLI reads this. db:dev:migrate:up and status pass DATABASE_URL from .env.
+FLYWAY_LOCATIONS = "filesystem:{{config_root}}/backend/src/main/resources/db/migration"
+
+[tasks.setup]
+description = "Install dependencies, start and migrate the database, and generate the contract"
+run = ["pnpm install --dir frontend", { task = "db:dev:migrate:up" }, { task = "contract" }]
+
+[tasks."dev:up"]
+description = "Build and start db, backend and web in Docker (web on :5173)"
+run = "docker compose up -d --build --wait"
+
+[tasks."dev:down"]
+description = "Stop every container. Database data is kept."
+run = "docker compose down"
+
+[tasks."dev:logs"]
+description = "Follow the logs of every container"
+run = "docker compose logs -f"
+
+[tasks."dev:restart"]
+description = "Restart the backend to pick up Java changes"
+run = "docker compose restart backend"
+
+[tasks."docker:dev:up"]
+description = "Build and start the deploy images (built jar + nginx, web on :8080)"
+run = "docker compose -f compose.yaml up --build --wait"
+
+[tasks."docker:dev:down"]
+description = "Stop the deploy containers"
+run = "docker compose -f compose.yaml down"
+
+[tasks."docker:dev:logs"]
+description = "Follow the logs of the deploy containers"
+run = "docker compose -f compose.yaml logs -f"
+
+[tasks."db:dev:up"]
+description = "Start the development database"
+run = "docker compose up -d db --wait"
+
+[tasks."db:dev:down"]
+description = "Stop and remove the development database container. Its data is kept."
+run = "docker compose down db"
+
+[tasks."db:dev:studio"]
+description = "Open Prisma Studio on the development database (http://localhost:5555)"
+depends = ["db:dev:up"]
+run = 'prisma studio --port 5555 --url "postgresql://$SERVICE_USER_POSTGRES:$SERVICE_PASSWORD_POSTGRES@localhost:$POSTGRES_PORT/$POSTGRES_DB"'
+
+[tasks."db:dev:psql"]
+description = "Open psql in the development database"
+depends = ["db:dev:up"]
+run = "docker compose exec db sh -c 'psql -U \"$POSTGRES_USER\" -d \"$POSTGRES_DB\"'"
+
+[tasks."db:dev:migrate:generate"]
+description = "Generate the next Flyway migration from changes to the JPA entities (arg: name)"
+usage = 'arg "<name>" help="snake_case description, e.g. add_users"'
+depends = ["db:dev:migrate:up"]
+run = '''
+dir=backend/src/main/resources/db/migration
+last=$(ls "$dir" | sed -nE 's/^V([0-9]+)__.*/\1/p' | sort -n | tail -1)
+file="V$(( ${last:-0} + 1 ))__${usage_name}.sql"
+
+# Boots the app once without a web server: Flyway applies the existing
+# migrations, then Hibernate writes the SQL needed to match the entities.
+docker compose run --rm --no-deps -T backend ./gradlew bootRun --no-daemon --quiet --args="\
+  --spring.main.web-application-type=none \
+  --spring.jpa.hibernate.ddl-auto=none \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.scripts.action=update \
+  --spring.jpa.properties.jakarta.persistence.schema-generation.scripts.create-target=/app/src/main/resources/db/migration/$file \
+  --spring.jpa.properties.hibernate.hbm2ddl.delimiter=; \
+  --spring.jpa.properties.hibernate.format_sql=true"
+
+if [ ! -s "$dir/$file" ]; then
+  rm -f "$dir/$file"
+  echo "The entities already match the database. No migration created." >&2
+  exit 1
+fi
+echo "Created $dir/$file. Review it, then run: mise run db:dev:migrate:up"
+'''
+
+[tasks."db:dev:migrate:up"]
+description = "Apply pending migrations to the development database"
+depends = ["db:dev:up"]
+run = 'flyway migrate -url="$DATABASE_URL" -skipCheckForUpdate'
+
+[tasks."db:dev:migrate:status"]
+description = "Show whether the development database is missing any migrations"
+depends = ["db:dev:up"]
+run = 'flyway info -url="$DATABASE_URL" -skipCheckForUpdate'
+
+[tasks."db:dev:reset"]
+description = "Delete the development database volume (migrations rerun on next start)"
+confirm = "Delete all data in the development database?"
+run = "docker compose down -v"
+
+[tasks.contract]
+description = "Regenerate backend/openapi.json, then the frontend client from it"
+run = [{ task = "contract:backend:generate" }, { task = "contract:frontend:generate" }]
+
+[tasks."contract:backend:generate"]
+description = "Write the backend's OpenAPI spec to backend/openapi.json"
+dir = "backend"
+run = "./gradlew generateOpenApiDocs --quiet"
+
+[tasks."contract:frontend:generate"]
+description = "Generate the frontend client in frontend/src/api/generated from backend/openapi.json"
+run = "pnpm --dir frontend exec openapi-ts"
+
+[tasks."contract:check"]
+description = "Fail if backend/openapi.json is out of date with the backend code"
+depends = ["contract:backend:generate"]
+run = "git diff --exit-code --stat backend/openapi.json || (echo 'backend/openapi.json is out of date. Run mise run contract and commit it.' >&2; exit 1)"
+
+[tasks."lint:backend"]
+description = "Lint and typecheck the backend"
+dir = "backend"
+run = "./gradlew compileJava --quiet"
+
+[tasks."lint:frontend"]
+description = "Lint and typecheck the frontend"
+depends = ["contract:frontend:generate"]
+dir = "frontend"
+run = ["pnpm exec oxlint --type-aware", "pnpm exec tsc --noEmit"]
+
+[tasks."lint:frontend:fix"]
+description = "Fix frontend lint issues"
+dir = "frontend"
+run = "pnpm exec oxlint --type-aware --fix"
+
+[tasks.lint]
+description = "Lint and typecheck everything"
+depends = ["lint:backend", "lint:frontend"]
+
+[tasks."lint:fix"]
+description = "Fix lint issues everywhere"
+depends = ["lint:frontend:fix"]
+
+[tasks."fmt:backend"]
+alias = "format:backend"
+description = "Check backend formatting"
+dir = "backend"
+run = "./gradlew spotlessCheck --quiet"
+
+[tasks."fmt:backend:fix"]
+alias = "format:backend:fix"
+description = "Format the backend"
+dir = "backend"
+run = "./gradlew spotlessApply --quiet"
+
+[tasks."fmt:frontend"]
+alias = "format:frontend"
+description = "Check frontend formatting"
+dir = "frontend"
+run = "pnpm exec oxfmt --check"
+
+[tasks."fmt:frontend:fix"]
+alias = "format:frontend:fix"
+description = "Format the frontend"
+dir = "frontend"
+run = "pnpm exec oxfmt"
+
+[tasks.fmt]
+alias = "format"
+description = "Check formatting everywhere"
+depends = ["fmt:backend", "fmt:frontend"]
+
+[tasks."fmt:fix"]
+alias = "format:fix"
+description = "Format everything"
+depends = ["fmt:backend:fix", "fmt:frontend:fix"]
+
+[tasks.build]
+description = "Build the backend and frontend"
+depends = ["contract:frontend:generate"]
+run = ["cd backend && ./gradlew bootJar --quiet", "pnpm --dir frontend run build"]
+
+[tasks.check]
+description = "Run everything CI runs"
+# One after another: parallel Gradle builds in one project fight over its lock.
+run = [{ task = "fmt" }, { task = "lint" }, { task = "contract:check" }]
