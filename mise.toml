@@ -14,7 +14,7 @@ _.file = ".env"
 # instead of a terminal and drop their colors.
 FORCE_COLOR = "1"
 
-[tasks."setup:dev"]
+[tasks.setup]
 description = "Install frontend dependencies, generate the contract, and start every container"
 run = ["pnpm install --dir frontend", { task = "contract" }, { task = "dev:up" }]
 
