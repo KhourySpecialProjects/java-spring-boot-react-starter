@@ -1,7 +1,5 @@
-# Values in ${...} come from .env, which mise loads for local tasks and Docker
-# Compose passes to the containers.
 server:
-  port: ${PORT:3000}
+  port: ${PORT}
   # nginx sits in front of the backend and sets X-Forwarded-* headers.
   forward-headers-strategy: framework
   shutdown: graceful
@@ -19,9 +17,12 @@ spring:
 
 springdoc:
   api-docs:
+    enabled: false
     path: /api/v1/openapi.json
   default-produces-media-type: application/json
 
 logging:
   level:
-    root: ${LOG_LEVEL:info}
+    root: ${LOG_LEVEL}
+  pattern:
+    console: "%clr(%d{yyyy-MM-dd HH:mm:ss}){faint} %clr(%5p) %clr(%logger{30}){cyan} %clr(:){faint} %m%n%wEx"

@@ -17,6 +17,8 @@ services:
     environment:
       # Spring only colors logs on a terminal, and the container has none.
       SPRING_OUTPUT_ANSI_ENABLED: always
+      # In dev, migrations only apply when you run `mise run db:dev:migrate:up`.
+      SPRING_FLYWAY_ENABLED: "false"
     volumes:
       - ./backend/src:/app/src
     ports:

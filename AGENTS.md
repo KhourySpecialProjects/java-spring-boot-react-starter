@@ -51,6 +51,10 @@ truth for every table. Change the database only this way:
    yourself. Then run `mise run db:dev:migrate:up`.
 4. `mise run db:dev:migrate:status` shows whether the database is missing migrations.
 
+In dev the backend never migrates on its own, so a pending migration only applies
+when you run `db:dev:migrate:up`. The deployed backend applies pending migrations
+every time it starts.
+
 Migrations only go forward. Never edit a migration that is already on `main`. Add a
 new one instead.
 

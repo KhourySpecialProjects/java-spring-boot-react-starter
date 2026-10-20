@@ -42,6 +42,6 @@ mise run db:dev:migrate:up                       # apply pending migrations
 mise run db:dev:migrate:status                   # is the database behind?
 ```
 
-Read the generated SQL before committing it. Hibernate never writes `DROP` statements, so add those yourself. There is no down migration: fix mistakes with a new one.
+Migrations only apply when you run `db:dev:migrate:up`. Read the generated SQL before committing it. Hibernate never writes `DROP` statements, so add those yourself. There is no down migration: fix mistakes with a new one.
 
 `mise run db:dev:studio` opens Prisma Studio on <http://localhost:5555>.

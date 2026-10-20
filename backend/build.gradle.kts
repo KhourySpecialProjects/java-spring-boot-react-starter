@@ -1,20 +1,11 @@
 import net.ltgt.gradle.errorprone.errorprone
 
-buildscript {
-	dependencies {
-		// The Flyway plugin runs outside the app, so it needs its own Postgres support.
-		classpath("org.flywaydb:flyway-database-postgresql:12.4.0")
-		classpath("org.postgresql:postgresql:42.7.13")
-	}
-}
-
 plugins {
 	java
 	id("org.springframework.boot") version "4.1.1"
 	id("io.spring.dependency-management") version "1.1.7"
 	id("com.diffplug.spotless") version "8.10.4"
 	id("net.ltgt.errorprone") version "5.1.1"
-	id("org.flywaydb.flyway") version "12.4.0"
 	id("org.springdoc.openapi-gradle-plugin") version "1.9.0"
 }
 
@@ -63,12 +54,6 @@ spotless {
 	java {
 		googleJavaFormat()
 	}
-}
-
-// `mise run db:dev:migrate:up` and `db:dev:migrate:status` use these.
-flyway {
-	url = System.getenv("DATABASE_URL")
-	locations = arrayOf("filesystem:src/main/resources/db/migration")
 }
 
 // `mise run contract` boots the app with the openapi profile, which needs no

@@ -3,6 +3,10 @@
 server:
   port: 3999
 
+springdoc:
+  api-docs:
+    enabled: true
+
 spring:
   datasource:
     url: jdbc:postgresql://localhost/placeholder

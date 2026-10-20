@@ -6,6 +6,8 @@
 java = "temurin-25"
 node = "24.22.0"
 pnpm = "12.14.0"
+# Same Flyway version Spring Boot uses, for db:dev:migrate:up and status.
+flyway = "12.4.0"
 "npm:prisma" = "7.9.1"
 
 [env]
@@ -13,10 +15,13 @@ _.file = ".env"
 # mise pipes task output to add the [task] prefix. Without this, tools see a pipe
 # instead of a terminal and drop their colors.
 FORCE_COLOR = "1"
+# The Flyway CLI reads these, so db:dev:migrate:up and status use DATABASE_URL from .env.
+FLYWAY_URL = "{{env.DATABASE_URL}}"
+FLYWAY_LOCATIONS = "filesystem:{{config_root}}/backend/src/main/resources/db/migration"
 
 [tasks.setup]
-description = "Install frontend dependencies, generate the contract, and start every container"
-run = ["pnpm install --dir frontend", { task = "contract" }, { task = "dev:up" }]
+description = "Install dependencies, start and migrate the database, and generate the contract"
+run = ["pnpm install --dir frontend", { task = "db:dev:migrate:up" }, { task = "contract" }]
 
 [tasks."dev:up"]
 description = "Build and start db, backend and web in Docker (web on :5173)"
@@ -94,12 +99,12 @@ echo "Created $dir/$file. Review it, then run: mise run db:dev:migrate:up"
 [tasks."db:dev:migrate:up"]
 description = "Apply pending migrations to the development database"
 depends = ["db:dev:up"]
-run = "docker compose run --rm --no-deps -T backend ./gradlew flywayMigrate --no-daemon --quiet"
+run = "flyway migrate -skipCheckForUpdate"
 
 [tasks."db:dev:migrate:status"]
 description = "Show whether the development database is missing any migrations"
 depends = ["db:dev:up"]
-run = "docker compose run --rm --no-deps -T backend ./gradlew flywayInfo --no-daemon --quiet"
+run = "flyway info -skipCheckForUpdate"
 
 [tasks."db:dev:reset"]
 description = "Delete the development database volume (migrations rerun on next start)"
