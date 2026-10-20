@@ -21,6 +21,7 @@ Rules for anyone changing code here, human or agent. Before editing `backend/` o
 browser -> web (vite / nginx) -> /api -> backend (Spring) -> db (Postgres)
 
 backend/   controller -> service -> dao -> repository -> entity
+           middleware/ runs around every request (request logging)
 frontend/  React app, API client generated from backend/openapi.json
 ```
 

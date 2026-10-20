@@ -8,6 +8,8 @@ paths:
 - Keep the layers: `controller` handles HTTP, `service` holds business logic,
   `dao` is the only caller of a `repository` and turns entities into DTOs.
   Entities never leave the `dao` layer.
+- Code that runs around every request goes in `middleware/` as a `OncePerRequestFilter`
+  `@Component`, like `RequestLogger`. Log with Lombok's `@Slf4j`, never `System.out`.
 - Inject dependencies as `private final` fields and put `@RequiredArgsConstructor` on
   the class. Spring uses that constructor; no `@Autowired`, no hand-written constructor.
 - Every controller lives under `/api/v1`. Give each method
