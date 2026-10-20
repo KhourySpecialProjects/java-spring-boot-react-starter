@@ -15,8 +15,7 @@ _.file = ".env"
 # mise pipes task output to add the [task] prefix. Without this, tools see a pipe
 # instead of a terminal and drop their colors.
 FORCE_COLOR = "1"
-# The Flyway CLI reads these, so db:dev:migrate:up and status use DATABASE_URL from .env.
-FLYWAY_URL = "{{env.DATABASE_URL}}"
+# The Flyway CLI reads this. db:dev:migrate:up and status pass DATABASE_URL from .env.
 FLYWAY_LOCATIONS = "filesystem:{{config_root}}/backend/src/main/resources/db/migration"
 
 [tasks.setup]
@@ -99,12 +98,12 @@ echo "Created $dir/$file. Review it, then run: mise run db:dev:migrate:up"
 [tasks."db:dev:migrate:up"]
 description = "Apply pending migrations to the development database"
 depends = ["db:dev:up"]
-run = "flyway migrate -skipCheckForUpdate"
+run = 'flyway migrate -url="$DATABASE_URL" -skipCheckForUpdate'
 
 [tasks."db:dev:migrate:status"]
 description = "Show whether the development database is missing any migrations"
 depends = ["db:dev:up"]
-run = "flyway info -skipCheckForUpdate"
+run = 'flyway info -url="$DATABASE_URL" -skipCheckForUpdate'
 
 [tasks."db:dev:reset"]
 description = "Delete the development database volume (migrations rerun on next start)"
