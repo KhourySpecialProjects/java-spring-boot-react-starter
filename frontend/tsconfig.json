@@ -8,13 +8,15 @@
     "types": ["vite/client", "node"],
     "strict": true,
     "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true,
     "verbatimModuleSyntax": true,
+    "erasableSyntaxOnly": true,
     "isolatedModules": true,
     "skipLibCheck": true,
     "noEmit": true
   },
-  "include": ["src", "vite.config.ts", "openapi-ts.config.ts"]
+  "include": ["src", "vite.config.ts", "openapi-ts.config.ts", "oxlint.config.ts"]
 }

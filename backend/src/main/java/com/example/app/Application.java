@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 // Server "/" keeps the generated frontend client on relative URLs, so requests
 // go through the Vite proxy in dev and nginx in deploy.
-@OpenAPIDefinition(info = @Info(title = "App API", version = "v1"), servers = @Server(url = "/"))
+@OpenAPIDefinition(info = @Info(title = "API", version = "1.0.0"), servers = @Server(url = "/"))
 @SpringBootApplication
 public class Application {
 

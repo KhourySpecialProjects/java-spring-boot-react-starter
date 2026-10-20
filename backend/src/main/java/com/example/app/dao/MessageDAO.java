@@ -16,10 +16,8 @@ public class MessageDAO {
     this.repository = repository;
   }
 
-  public List<MessageDTO> findAll() {
-    return repository.findAllByOrderByCreatedAtDescIdDesc().stream()
-        .map(MessageDAO::toDTO)
-        .toList();
+  public List<MessageDTO> findLatest() {
+    return repository.findLatest().stream().map(MessageDAO::toDTO).toList();
   }
 
   private static MessageDTO toDTO(Message message) {

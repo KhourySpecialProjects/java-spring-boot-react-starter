@@ -9,6 +9,7 @@ import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.ColumnDefault;
 
 // @Getter/@Setter because Lombok's equals/hashCode break JPA entities.
 @Entity
@@ -19,11 +20,12 @@ public class Message {
 
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
-  private Long id;
+  private Integer id;
 
   @Column(nullable = false, columnDefinition = "text")
   private String text;
 
+  @ColumnDefault("now()")
   @Column(name = "created_at", nullable = false, insertable = false, updatable = false)
   private Instant createdAt;
 }

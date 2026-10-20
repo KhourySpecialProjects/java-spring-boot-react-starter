@@ -1,11 +1,11 @@
-# Development overrides, merged automatically by `docker compose` (`mise run dev`).
+# Development overrides, merged automatically by `docker compose` (`mise run dev:up`).
 services:
   db:
     environment:
       # Fails fast with a readable message when .env is missing or incomplete.
-      POSTGRES_USER: ${POSTGRES_USER:?missing. Run `mise run setup` to create .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing. Run `mise run setup` to create .env}
-      POSTGRES_DB: ${POSTGRES_DB:?missing. Run `mise run setup` to create .env}
+      POSTGRES_USER: ${SERVICE_USER_POSTGRES:?missing, run cp .env.example .env}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES:?missing, run cp .env.example .env}
+      POSTGRES_DB: ${POSTGRES_DB:?missing, run cp .env.example .env}
     ports:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
 
@@ -14,10 +14,12 @@ services:
     image: ${COMPOSE_PROJECT_NAME}-backend:local
     build:
       target: local
+    environment:
+      # Spring only colors logs on a terminal, and the container has none.
+      SPRING_OUTPUT_ANSI_ENABLED: always
     volumes:
       - ./backend/src:/app/src
     ports:
-      # `mise run contract` reads the OpenAPI spec from here.
       - "127.0.0.1:3000:3000"
     healthcheck:
       start_period: 120s
@@ -28,8 +30,11 @@ services:
       target: local
     environment:
       BACKEND_URL: http://backend:3000
+    ports: !override
+      - "127.0.0.1:5173:5173"
+    # In dev the frontend does not need to wait for the backend to be healthy.
+    depends_on: !reset {}
     healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:8080/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
     volumes:
-      - ./frontend/src:/app/src
-      - ./contract:/contract
+      - ./frontend/src:/app/frontend/src

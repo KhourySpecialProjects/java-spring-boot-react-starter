@@ -1,10 +1,13 @@
-# Deploy-like stack: built jar + nginx. `mise run stack` runs this file alone.
-# `mise run dev` merges compose.override.yaml on top for development.
+# Deploy-like stack: built jar + nginx. `mise run stack:dev:up` runs this file alone.
+# `mise run dev:up` merges compose.override.yaml on top for development.
 services:
   db:
     image: postgres:18-alpine
     restart: unless-stopped
-    env_file: .env
+    environment:
+      POSTGRES_USER: ${SERVICE_USER_POSTGRES:-app}
+      POSTGRES_PASSWORD: ${SERVICE_PASSWORD_POSTGRES:-app}
+      POSTGRES_DB: ${POSTGRES_DB:-app}
     volumes:
       - db-data:/var/lib/postgresql
     healthcheck:
@@ -18,15 +21,15 @@ services:
       context: backend
       target: deploy
     restart: unless-stopped
-    env_file: .env
     environment:
-      DB_HOST: db
-      DB_PORT: 5432
+      PORT: 3000
+      DATABASE_URL: jdbc:postgresql://db:5432/${POSTGRES_DB:-app}?user=${SERVICE_USER_POSTGRES:-app}&password=${SERVICE_PASSWORD_POSTGRES:-app}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     depends_on:
       db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/actuator/health"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 5

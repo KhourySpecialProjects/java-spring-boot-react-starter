@@ -5,7 +5,7 @@ COPY gradle gradle
 RUN ./gradlew dependencies --no-daemon -q > /dev/null
 
 # Runs from source. compose.override.yaml bind-mounts src/ over /app/src, so
-# `mise run dev:restart` picks up Java changes.
+# `mise run dev:restart` picks up Java changes. Migration tasks run here too.
 FROM base AS local
 COPY src src
 CMD ["./gradlew", "bootRun", "--no-daemon"]

@@ -1,23 +1,25 @@
-import { useEffect, useState } from "react";
-import { listMessages, type MessageDto } from "./api/generated";
+import { useState } from "react";
+import { listMessages, type Message } from "./api/generated";
 
-export function App() {
-  const [messages, setMessages] = useState<MessageDto[]>([]);
+export const App = () => {
+  const [messages, setMessages] = useState<Message[]>([]);
   const [error, setError] = useState<string>();
 
-  useEffect(() => {
-    listMessages().then((result) => {
-      if (!result.data) {
-        setError("Could not load messages");
-        return;
-      }
-      setMessages(result.data);
-    });
-  }, []);
+  const load = async () => {
+    const result = await listMessages();
+    if (!result.data) {
+      setError("Could not load messages");
+      return;
+    }
+    setError(undefined);
+    setMessages(result.data);
+  };
 
   return (
     <main>
-      <h1>Messages</h1>
+      <button type="button" onClick={load}>
+        Load messages
+      </button>
       {error && <p>{error}</p>}
       <ul>
         {messages.map((message) => (
@@ -26,4 +28,4 @@ export function App() {
       </ul>
     </main>
   );
-}
+};

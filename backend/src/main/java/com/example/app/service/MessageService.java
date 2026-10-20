@@ -15,6 +15,6 @@ public class MessageService {
   }
 
   public List<MessageDTO> listMessages() {
-    return messageDAO.findAll();
+    return messageDAO.findLatest();
   }
 }
